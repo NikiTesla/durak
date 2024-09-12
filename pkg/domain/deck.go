@@ -7,8 +7,9 @@ import (
 )
 
 type Deck struct {
-	mu    sync.RWMutex
-	cards []Card
+	mu        sync.RWMutex
+	cards     []Card
+	trumpCard Card
 }
 
 func NewDeck() *Deck {
@@ -26,6 +27,7 @@ func (d *Deck) Shuffle() {
 		j := rand.Intn(i + 1)
 		d.cards[i], d.cards[j] = d.cards[j], d.cards[i]
 	}
+	d.trumpCard = d.cards[len(d.cards)-1]
 }
 
 func (d *Deck) String() string {
@@ -47,4 +49,12 @@ func (d *Deck) GetCard() (Card, error) {
 	d.cards = d.cards[1:]
 
 	return card, nil
+}
+
+func (d *Deck) GetTrumpSuit() Suit {
+	return d.trumpCard.Suit
+}
+
+func (d *Deck) GetTrumpCard() string {
+	return d.trumpCard.String()
 }

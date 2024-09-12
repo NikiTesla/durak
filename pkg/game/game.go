@@ -4,10 +4,10 @@ import (
 	"context"
 	"durak/pkg/domain"
 	"durak/pkg/repository"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -20,8 +20,6 @@ const (
 )
 
 type Game struct {
-	mu sync.RWMutex
-
 	storage *repository.MemoryStorage
 	players map[string]*domain.Player
 	bito    []domain.Card
@@ -43,21 +41,30 @@ func NewGame(port string, logger *log.Entry) *Game {
 	}
 }
 
+func (g *Game) updatePlayers(ctx context.Context) error {
+	players, err := g.storage.GetPlayers(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get players, err: %w", err)
+	}
+	g.players = players
+
+	return nil
+}
+
 func (g *Game) run(ctx context.Context) error {
 	if swapped := g.isGameInProgress.CompareAndSwap(false, true); !swapped {
 		return ErrGameIsInProgress
 	}
 
-	players, err := g.storage.GetPlayers(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get players")
+	if err := g.updatePlayers(ctx); err != nil {
+		return fmt.Errorf("updating players, err: %w", err)
 	}
 
-	if len(players)*6 > cardsAmount {
+	if len(g.players)*6 > cardsAmount {
 		return ErrTooManyPlayers
 	}
 
-	g.logger.Infof("game was started with players: %v", players)
+	g.logger.Infof("game was started with players: %v", g.players)
 	deck := domain.NewDeck()
 	deck.Shuffle()
 
@@ -73,29 +80,40 @@ waitingForReadiness:
 				break waitingForReadiness
 			}
 		case <-ctx.Done():
-			return errors.Join(err, ErrContextIsDone)
+			return errors.Join(ctx.Err(), ErrContextIsDone)
 		}
 	}
 
 	// distribution of cards
 	for range 6 {
-		for _, player := range players {
+		for _, player := range g.players {
 			card, err := deck.GetCard()
 			if err != nil {
 				panic(err)
 			}
 
-			player.GetCard(card)
+			player.TakeCard(card)
 		}
 	}
 
 	g.logger.Info("all players are ready")
-	fmt.Printf("Deck: %v\n", deck)
-	for _, player := range players {
-		fmt.Println(player)
+	fmt.Printf("Trump is:\n%s\n", deck.GetTrumpCard())
+
+	for range ctx.Done() {
+		return errors.Join(ctx.Err(), ErrContextIsDone)
 	}
 
 	return nil
+}
+
+func (g *Game) arePlayersReady() bool {
+	for _, player := range g.players {
+		if !player.IsReady() {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (g *Game) createPlayer(username string) error {
@@ -106,27 +124,38 @@ func (g *Game) createPlayer(username string) error {
 }
 
 func (g *Game) playerIsReady(w http.ResponseWriter, r *http.Request) {
+	player, err := g.getPlayer(r)
+	if err != nil {
+		g.logger.WithError(err).Error("getting player")
+		http.Error(w, "cannot get player's info", http.StatusInternalServerError)
+		return
+	}
+
+	player.SetReady()
+}
+
+func (g *Game) getPlayersCards(w http.ResponseWriter, r *http.Request) {
+	player, err := g.getPlayer(r)
+	if err != nil {
+		g.logger.WithError(err).Error("getting player")
+		http.Error(w, "cannot get player's info", http.StatusInternalServerError)
+		return
+	}
+
+	g.logger.Infof("player's hand is:\n %s", player.GetHand())
+	json.NewEncoder(w).Encode(map[string]string{"hand": player.GetHand()})
+}
+
+func (g *Game) getPlayer(r *http.Request) (*domain.Player, error) {
 	username, ok := r.Context().Value(usernameKey).(string)
 	if !ok {
-		g.logger.Fatalf("usernameKey holds not string value but %T", username)
+		return nil, fmt.Errorf("usernameKey holds not string value but %T", username)
 	}
 
 	player, ok := g.players[username]
 	if !ok {
-		g.logger.Fatalf("player with username %s was not found", username)
-	}
-	player.SetReady()
-}
-
-func (g *Game) arePlayersReady() bool {
-	g.mu.RLock()
-	defer g.mu.RUnlock()
-
-	for _, player := range g.players {
-		if !player.IsReady() {
-			return false
-		}
+		return nil, fmt.Errorf("player with username %s was not found", username)
 	}
 
-	return true
+	return player, nil
 }

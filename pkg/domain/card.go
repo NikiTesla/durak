@@ -1,12 +1,8 @@
 package domain
 
-import (
-	"fmt"
-)
-
 type Card struct {
-	rank Rank
-	suit Suit
+	Rank Rank
+	Suit Suit
 }
 
 type Rank int
@@ -40,5 +36,5 @@ var Cards = []Card{
 }
 
 func (c *Card) String() string {
-	return fmt.Sprintf("%d %s", c.rank, c.suit)
+	return asciiCards[*c]
 }

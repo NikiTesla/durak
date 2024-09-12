@@ -21,6 +21,7 @@ func (g *Game) InitRouter() http.Handler {
 
 	playerRtr := http.NewServeMux()
 	playerRtr.HandleFunc("POST /ready", g.playerIsReady)
+	playerRtr.HandleFunc("GET /get_hand", g.getPlayersCards)
 	rtr.Handle("/player/", http.StripPrefix("/player", g.playerMiddleware(playerRtr)))
 
 	adminRtr := http.NewServeMux()

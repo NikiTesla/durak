@@ -1,7 +1,7 @@
 package domain
 
 import (
-	"fmt"
+	"strings"
 )
 
 type Player struct {
@@ -18,12 +18,29 @@ func NewPlayer(name string) *Player {
 	}
 }
 
-func (p *Player) GetCard(card Card) {
+func (p *Player) String() string {
+	return p.name
+}
+
+func (p *Player) TakeCard(card Card) {
 	p.cards = append(p.cards, card)
 }
 
-func (p *Player) String() string {
-	return fmt.Sprintf("Player %s has cards: %v", p.name, p.cards)
+func (p *Player) GetHand() string {
+	if len(p.cards) == 0 {
+		return ""
+	}
+
+	result := strings.Builder{}
+	cardImageRowsAmount := strings.Split(p.cards[0].String(), "\n")
+	for i := range cardImageRowsAmount {
+		for _, card := range p.cards {
+			result.WriteString(strings.Split(card.String(), "\n")[i] + "\t\t")
+		}
+		result.WriteString("\n")
+	}
+
+	return result.String()
 }
 
 func (p *Player) SetReady() {

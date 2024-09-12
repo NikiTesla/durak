@@ -33,16 +33,11 @@ func (m *MemoryStorage) DeletePlayer(_ context.Context, username string) error {
 	return nil
 }
 
-func (m *MemoryStorage) GetPlayers(_ context.Context) ([]*domain.Player, error) {
+func (m *MemoryStorage) GetPlayers(_ context.Context) (map[string]*domain.Player, error) {
 	m.mx.RLock()
 	defer m.mx.RUnlock()
 
-	players := make([]*domain.Player, 0, len(m.players))
-	for _, player := range m.players {
-		players = append(players, player)
-	}
-
-	return players, nil
+	return m.players, nil
 }
 
 func (m *MemoryStorage) GetPlayer(username string) (*domain.Player, error) {

@@ -30,6 +30,11 @@ func (g *Game) registerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if _, ok := usersCreds[creds.Username]; ok {
+		http.Error(w, "user with such username already exists", http.StatusConflict)
+		return
+	}
+
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(creds.Password), bcrypt.DefaultCost)
 	if err != nil {
 		http.Error(w, "failed to hash password", http.StatusInternalServerError)
