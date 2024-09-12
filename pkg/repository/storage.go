@@ -7,13 +7,13 @@ import (
 )
 
 type MemoryStorage struct {
-	players map[string]domain.Player
+	players map[string]*domain.Player
 	mx      sync.RWMutex
 }
 
 func NewMemoryStorage() *MemoryStorage {
 	return &MemoryStorage{
-		players: make(map[string]domain.Player),
+		players: make(map[string]*domain.Player),
 	}
 }
 
@@ -39,13 +39,13 @@ func (m *MemoryStorage) GetPlayers(_ context.Context) ([]*domain.Player, error) 
 
 	players := make([]*domain.Player, 0, len(m.players))
 	for _, player := range m.players {
-		players = append(players, &player)
+		players = append(players, player)
 	}
 
 	return players, nil
 }
 
-func (m *MemoryStorage) GetPlayer(username string) (domain.Player, error) {
+func (m *MemoryStorage) GetPlayer(username string) (*domain.Player, error) {
 	m.mx.RLock()
 	defer m.mx.RUnlock()
 

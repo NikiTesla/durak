@@ -9,7 +9,8 @@ import (
 )
 
 // username to hashes password
-var users = map[string]string{}
+// TODO move to storage layer
+var usersCreds = map[string]string{}
 
 func (g *Game) registerHandler(w http.ResponseWriter, r *http.Request) {
 	var creds struct {
@@ -35,14 +36,16 @@ func (g *Game) registerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	users[creds.Username] = string(hashedPassword)
+	usersCreds[creds.Username] = string(hashedPassword)
 
-	if err = g.createPlayer(creds.Username); err != nil {
-		g.logger.WithError(err).Errorf("failed to create user with username %s", creds.Username)
-		http.Error(w, "failed to create user", http.StatusInternalServerError)
-		return
+	if getRole(creds.Username) == playerRole {
+		if err = g.createPlayer(creds.Username); err != nil {
+			g.logger.WithError(err).Errorf("failed to create player with username %s", creds.Username)
+			http.Error(w, "failed to create player", http.StatusInternalServerError)
+			return
+		}
+		g.logger.Debugf("Player with %s was successfully created", creds.Username)
 	}
-	g.logger.Debugf("User with %s was successfully created", creds.Username)
 
 	token, err := generateJWT(creds.Username)
 	if err != nil {
@@ -72,7 +75,7 @@ func (g *Game) loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	json.NewDecoder(r.Body).Decode(&creds)
 
-	storedPassword, ok := users[creds.Username]
+	storedPassword, ok := usersCreds[creds.Username]
 	if !ok || bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(creds.Password)) != nil {
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 		return
@@ -85,4 +88,11 @@ func (g *Game) loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(map[string]string{"token": token})
+}
+
+func getRole(username string) string {
+	if username == "admin" {
+		return adminRole
+	}
+	return playerRole
 }

@@ -3,36 +3,54 @@ package durak
 import (
 	"context"
 	"net/http"
-	"strings"
-
-	"github.com/golang-jwt/jwt"
 )
 
 type ContextKey string
 
-const usernameKey ContextKey = "username"
+const (
+	usernameKey ContextKey = "username"
+	roleKey     ContextKey = "admin"
 
-func (g *Game) jwtMiddleware(next http.Handler) http.Handler {
+	adminRole  = "admin"
+	playerRole = "player"
+)
+
+func (g *Game) playerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			http.Error(w, "Authorization header missing", http.StatusUnauthorized)
+		g.logger.Debug("player middleware is serving request")
+
+		claims, err := parseClaims(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
 
-		tokenString := strings.Split(authHeader, "Bearer ")[1]
-		claims := &Claims{}
+		ctx := context.WithValue(r.Context(), usernameKey, claims.Username)
+		ctx = context.WithValue(ctx, roleKey, playerRole)
+		r = r.WithContext(ctx)
 
-		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-			return jwtKey, nil
-		})
+		next.ServeHTTP(w, r)
+	})
+}
 
-		if err != nil || !token.Valid {
-			http.Error(w, "Invalid token", http.StatusUnauthorized)
+func (g *Game) adminMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		g.logger.Debug("admin middleware is serving request")
+
+		claims, err := parseClaims(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
 
-		r = r.WithContext(context.WithValue(r.Context(), usernameKey, claims.Username))
+		if getRole(claims.Username) != adminRole {
+			http.Error(w, "you are not allowed to do that", http.StatusForbidden)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), usernameKey, claims.Username)
+		ctx = context.WithValue(ctx, roleKey, adminRole)
+		r = r.WithContext(ctx)
 
 		next.ServeHTTP(w, r)
 	})
