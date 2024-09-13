@@ -6,6 +6,7 @@ Card game for players that want to play it in local network (a lot of stuff to r
 - Registering in game
 - Cards and deck
 - Distribution of cards
+- Getting hand
 
 
 ## Dependencies
