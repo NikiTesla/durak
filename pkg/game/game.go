@@ -72,6 +72,7 @@ func (g *Game) run(ctx context.Context) error {
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 
+	g.logger.Info("waiting for players to be ready")
 waitingForReadiness:
 	for {
 		select {
