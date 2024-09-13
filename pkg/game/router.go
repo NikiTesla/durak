@@ -1,6 +1,8 @@
 package durak
 
 import (
+	"durak/pkg/domain"
+	"encoding/json"
 	"errors"
 	"net/http"
 )
@@ -22,6 +24,7 @@ func (g *Game) InitRouter() http.Handler {
 	playerRtr := http.NewServeMux()
 	playerRtr.HandleFunc("POST /ready", g.playerIsReady)
 	playerRtr.HandleFunc("GET /get_hand", g.getPlayersCards)
+	playerRtr.HandleFunc("POST /add_card", g.addCardToTable)
 	rtr.Handle("/player/", http.StripPrefix("/player", g.playerMiddleware(playerRtr)))
 
 	adminRtr := http.NewServeMux()
@@ -49,4 +52,29 @@ func (g *Game) startGame(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "error occured during the game", http.StatusInternalServerError)
 		}
 	}
+}
+
+func (g *Game) addCardToTable(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	var card domain.Card
+	if err := json.NewDecoder(r.Body).Decode(&card); err != nil {
+		g.logger.WithError(err).Error("decoding card data from request")
+		http.Error(w, "failed to read your card data", http.StatusInternalServerError)
+		return
+	}
+
+	var valid bool
+	for _, baseCard := range domain.Cards {
+		if card.Suit == baseCard.Suit && card.Rank == baseCard.Rank {
+			valid = true
+		}
+	}
+
+	if !valid {
+		http.Error(w, "you've sent unknown card", http.StatusBadRequest)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{"card": card.String()})
 }

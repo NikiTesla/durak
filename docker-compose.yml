@@ -1,0 +1,8 @@
+services:
+  server:
+    container_name: durak-server
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${MAIN_SERVICE_PORT}:${MAIN_SERVICE_PORT}"

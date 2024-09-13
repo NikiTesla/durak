@@ -21,8 +21,11 @@ const (
 
 type Game struct {
 	storage *repository.MemoryStorage
-	players map[string]*domain.Player
-	bito    []domain.Card
+
+	players      map[string]*domain.Player
+	bito         []domain.Card
+	tableCards   map[*domain.Card]*domain.Card
+	playersQueue []*domain.Player
 
 	isGameInProgress atomic.Bool
 
@@ -60,8 +63,14 @@ func (g *Game) run(ctx context.Context) error {
 		return fmt.Errorf("updating players, err: %w", err)
 	}
 
+	// getting players' queue
 	if len(g.players)*6 > cardsAmount {
 		return ErrTooManyPlayers
+	}
+
+	g.playersQueue = make([]*domain.Player, 0, len(g.players))
+	for _, player := range g.players {
+		g.playersQueue = append(g.playersQueue, player)
 	}
 
 	g.logger.Infof("game was started with players: %v", g.players)

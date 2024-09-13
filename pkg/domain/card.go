@@ -1,8 +1,8 @@
 package domain
 
 type Card struct {
-	Rank Rank
-	Suit Suit
+	Rank Rank `json:"rank"`
+	Suit Suit `json:"suit"`
 }
 
 type Rank int

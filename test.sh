@@ -50,5 +50,6 @@ printf "first player's hand \n$(echo $hand | jq -r ".hand") \n"
 hand=$(curl --location $GET_HAND_URL --header "Authorization: Bearer $PLAYER2_TOKEN" -s)
 printf "second player's hand \n$(echo $hand | jq -r ".hand") \n"
 
+curl --location localhost:7070/player/add_card -d '{"suit": "Spades", "rank": 6}' --header "Authorization: Bearer $TOKEN" -s | jq -r ".card"
 
 sleep 10
