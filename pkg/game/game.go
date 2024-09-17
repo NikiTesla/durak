@@ -101,3 +101,27 @@ waitingForReadiness:
 
 	return nil
 }
+
+func (g *Game) AddCardToTable(card *domain.Card) error {
+	var valid bool
+	for _, baseCard := range domain.Cards {
+		if card.Suit == baseCard.Suit && card.Rank == baseCard.Rank {
+			valid = true
+		}
+	}
+
+	if !valid {
+		return errors.New("card is unknwon")
+	}
+
+	g.tableCards[card] = nil
+
+	return nil
+}
+
+func (g *Game) clearTable() error {
+	for card1, card2 := range g.tableCards {
+		g.bito = append(g.bito, *card1, *card2)
+	}
+	return nil
+}

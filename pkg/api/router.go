@@ -61,22 +61,15 @@ func (a *App) startGame(w http.ResponseWriter, r *http.Request) {
 func (a *App) addCardToTable(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
-	var card domain.Card
+	var card *domain.Card
 	if err := json.NewDecoder(r.Body).Decode(&card); err != nil {
 		a.logger.WithError(err).Error("decoding card data from request")
 		http.Error(w, "failed to read your card data", http.StatusInternalServerError)
 		return
 	}
 
-	var valid bool
-	for _, baseCard := range domain.Cards {
-		if card.Suit == baseCard.Suit && card.Rank == baseCard.Rank {
-			valid = true
-		}
-	}
-
-	if !valid {
-		http.Error(w, "you've sent unknown card", http.StatusBadRequest)
+	if err := a.game.AddCardToTable(card); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
