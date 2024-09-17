@@ -4,10 +4,8 @@ import (
 	"context"
 	"durak/pkg/domain"
 	"durak/pkg/repository"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"sync/atomic"
 	"time"
 
@@ -30,12 +28,10 @@ type Game struct {
 	isGameInProgress atomic.Bool
 
 	logger *log.Entry
-	port   string
 }
 
-func NewGame(port string, logger *log.Entry) *Game {
+func NewGame(logger *log.Entry) *Game {
 	return &Game{
-		port:             port,
 		logger:           logger,
 		storage:          repository.NewMemoryStorage(),
 		players:          make(map[string]*domain.Player),
@@ -44,17 +40,7 @@ func NewGame(port string, logger *log.Entry) *Game {
 	}
 }
 
-func (g *Game) updatePlayers(ctx context.Context) error {
-	players, err := g.storage.GetPlayers(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get players, err: %w", err)
-	}
-	g.players = players
-
-	return nil
-}
-
-func (g *Game) run(ctx context.Context) error {
+func (g *Game) Start(ctx context.Context) error {
 	if swapped := g.isGameInProgress.CompareAndSwap(false, true); !swapped {
 		return ErrGameIsInProgress
 	}
@@ -114,58 +100,4 @@ waitingForReadiness:
 	}
 
 	return nil
-}
-
-func (g *Game) arePlayersReady() bool {
-	for _, player := range g.players {
-		if !player.IsReady() {
-			return false
-		}
-	}
-
-	return true
-}
-
-func (g *Game) createPlayer(username string) error {
-	if err := g.storage.CreatePlayer(g.logger.Context, username); err != nil {
-		return fmt.Errorf("failed to create user, err: %w", err)
-	}
-	return nil
-}
-
-func (g *Game) playerIsReady(w http.ResponseWriter, r *http.Request) {
-	player, err := g.getPlayer(r)
-	if err != nil {
-		g.logger.WithError(err).Error("getting player")
-		http.Error(w, "cannot get player's info", http.StatusInternalServerError)
-		return
-	}
-
-	player.SetReady()
-}
-
-func (g *Game) getPlayersCards(w http.ResponseWriter, r *http.Request) {
-	player, err := g.getPlayer(r)
-	if err != nil {
-		g.logger.WithError(err).Error("getting player")
-		http.Error(w, "cannot get player's info", http.StatusInternalServerError)
-		return
-	}
-
-	g.logger.Infof("player's hand is:\n %s", player.GetHand())
-	json.NewEncoder(w).Encode(map[string]string{"hand": player.GetHand()})
-}
-
-func (g *Game) getPlayer(r *http.Request) (*domain.Player, error) {
-	username, ok := r.Context().Value(usernameKey).(string)
-	if !ok {
-		return nil, fmt.Errorf("usernameKey holds not string value but %T", username)
-	}
-
-	player, ok := g.players[username]
-	if !ok {
-		return nil, fmt.Errorf("player with username %s was not found", username)
-	}
-
-	return player, nil
 }

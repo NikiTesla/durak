@@ -1,4 +1,4 @@
-package durak
+package api
 
 import (
 	"context"
@@ -15,9 +15,9 @@ const (
 	playerRole = "player"
 )
 
-func (g *Game) playerMiddleware(next http.Handler) http.Handler {
+func (a *App) playerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		g.logger.Debug("player middleware is serving request")
+		a.logger.Debug("player middleware is serving request")
 
 		claims, err := parseClaims(r)
 		if err != nil {
@@ -33,9 +33,9 @@ func (g *Game) playerMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func (g *Game) adminMiddleware(next http.Handler) http.Handler {
+func (a *App) adminMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		g.logger.Debug("admin middleware is serving request")
+		a.logger.Debug("admin middleware is serving request")
 
 		claims, err := parseClaims(r)
 		if err != nil {

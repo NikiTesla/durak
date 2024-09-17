@@ -1,6 +1,7 @@
 package main
 
 import (
+	"durak/pkg/api"
 	durak "durak/pkg/game"
 
 	log "github.com/sirupsen/logrus"
@@ -10,9 +11,11 @@ func main() {
 	logger := log.NewEntry(log.StandardLogger())
 	logger.Logger.SetLevel(log.DebugLevel)
 
-	game := durak.NewGame(":7070", logger)
+	game := durak.NewGame(logger)
 
-	if err := game.Run(); err != nil {
+	app := api.NewApp(":7070", game, logger)
+
+	if err := app.Start(); err != nil {
 		log.WithError(err).Fatal("game failed")
 	}
 }

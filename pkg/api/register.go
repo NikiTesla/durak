@@ -1,8 +1,9 @@
-package durak
+package api
 
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"golang.org/x/crypto/bcrypt"
@@ -12,20 +13,20 @@ import (
 // TODO move to storage layer
 var usersCreds = map[string]string{}
 
-func (g *Game) registerHandler(w http.ResponseWriter, r *http.Request) {
+func (a *App) registerHandler(w http.ResponseWriter, r *http.Request) {
 	var creds struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
 	}
 	json.NewDecoder(r.Body).Decode(&creds)
 
-	if err := g.validateRegisterCreds(creds.Username, creds.Password); err != nil {
+	if err := a.validateRegisterCreds(creds.Username, creds.Password); err != nil {
 		if errors.Is(err, ErrUsernameIsEmpty) || errors.Is(err, ErrPasswordIsEmpty) {
 			http.Error(w, "please provide both username and password", http.StatusBadRequest)
 			return
 		}
 
-		g.logger.WithError(err).Error("failed to validate user's registration credentials")
+		a.logger.WithError(err).Error("failed to validate user's registration credentials")
 		http.Error(w, "credentials validation failed", http.StatusInternalServerError)
 		return
 	}
@@ -44,12 +45,12 @@ func (g *Game) registerHandler(w http.ResponseWriter, r *http.Request) {
 	usersCreds[creds.Username] = string(hashedPassword)
 
 	if getRole(creds.Username) == playerRole {
-		if err = g.createPlayer(creds.Username); err != nil {
-			g.logger.WithError(err).Errorf("failed to create player with username %s", creds.Username)
+		if err = a.createPlayer(creds.Username); err != nil {
+			a.logger.WithError(err).Errorf("failed to create player with username %s", creds.Username)
 			http.Error(w, "failed to create player", http.StatusInternalServerError)
 			return
 		}
-		g.logger.Debugf("Player with %s was successfully created", creds.Username)
+		a.logger.Debugf("Player with %s was successfully created", creds.Username)
 	}
 
 	token, err := generateJWT(creds.Username)
@@ -61,7 +62,14 @@ func (g *Game) registerHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"token": token})
 }
 
-func (g *Game) validateRegisterCreds(username, password string) error {
+func (a *App) createPlayer(username string) error {
+	if err := a.game.CreatePlayer(a.logger.Context, username); err != nil {
+		return fmt.Errorf("failed to create user, err: %w", err)
+	}
+	return nil
+}
+
+func (g *App) validateRegisterCreds(username, password string) error {
 	if username == "" {
 		return ErrPasswordIsEmpty
 	}
@@ -73,7 +81,7 @@ func (g *Game) validateRegisterCreds(username, password string) error {
 	return nil
 }
 
-func (g *Game) loginHandler(w http.ResponseWriter, r *http.Request) {
+func (g *App) loginHandler(w http.ResponseWriter, r *http.Request) {
 	var creds struct {
 		Username string `json:"username"`
 		Password string `json:"password"`

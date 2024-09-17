@@ -1,4 +1,4 @@
-package durak
+package api
 
 import (
 	"net/http"
